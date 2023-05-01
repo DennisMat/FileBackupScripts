@@ -19,9 +19,9 @@ function copyFolder($src,$dest,$exclude){
 
     foreach ($d in $dest) {
          if($excludeStr -eq ""){
-              robocopy  $src $d /E /FFT /r:1 /log+:$backuplogfile
+              robocopy  $src $d /E /FFT /r:1 /log+:$backuplogfile /TEE
         }else{
-              robocopy  $src $d /E /FFT /xd $exclude /r:1 /log+:$backuplogfile
+              robocopy  $src $d /E /FFT /xd $exclude /r:1 /log+:$backuplogfile /TEE
         }
 
         if ($lastexitcode -eq 16){
@@ -96,8 +96,8 @@ Write-Host "Copying ThunderBird Emails"
 Write-Host "-------------------------"
 
 
-$emailFolder="\miscstuff\EmailBackup\Thunderbird\Profiles"
-$src="C:\Users\Lenovo\AppData\Roaming\Thunderbird\Profiles"
+$emailFolder="\miscstuff\EmailBackup\Thunderbird"
+$src="C:\Users\Lenovo\AppData\Roaming\Thunderbird"
 
 Write-Host "Copying ThunderBird Emails from C to E (True copy) drive  "
 $dest=$baseDirE+$emailFolder
