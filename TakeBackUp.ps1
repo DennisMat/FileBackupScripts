@@ -37,25 +37,20 @@ function copyFolder($src,$dest,$exclude){
 }#end of copyFolder
 
 #source dir located at Denniswin10t530
-$baseSourceDir="C:\temp\bk\a"
+$baseSourceDir="C:\dennis"
 
-$baseDestDirD="C:\temp\bk\targ"
+$baseDestDirD="D:\dennis"
 
 
 #-------x-------x-------x-------x-------x-------x-------x-------x-------x-------x-------x-------x-------x-------x-------x
 #Copy entire D drive
-Write-Host "Copying entire C drive to D"
-Write-Host "-----------------------"
+Write-Host "Copying entire C drive to D" -ForegroundColor Green
+Write-Host "----------------------------" -ForegroundColor Green
 
 $src=$baseSourceDir
 $dest=$baseDestDirD
 
-$excludeDir1="C:\temp\bk\a\n"
-$excludeDir2="C:\temp\bk\a\o"
-
-$excludeDirs=@($excludeDir1,$excludeDir2)
-
-copyFolder $src $dest $excludeDirs
+copyFolder $src $dest 
 
 
 

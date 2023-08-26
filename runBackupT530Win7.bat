@@ -1,0 +1,2 @@
+C:\Windows\System32\WindowsPowerShell\v1.0\Powershell.exe -executionpolicy remotesigned -File  D:\dennis\work\FileBackupScripts\TakeBackUpT530Win7.ps1
+start "" cmd /c "echo Done file copying &echo(&pause"
