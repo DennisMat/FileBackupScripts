@@ -26,7 +26,7 @@ public class DuplicateFileEliminator {
 //        }
 
         //String directoryPath = args[0];
-        String directoryPath = "C:/dennis";
+        String directoryPath = "D:/dennis";
         try {
             List<FileDetails> fileList = findDuplicates(directoryPath);
             if (fileList.isEmpty()) {
@@ -48,30 +48,11 @@ public class DuplicateFileEliminator {
         }
     }
     
-    // Method to get the file size
+
     public static long getFileSize(File file) {
         return file.length();
     }
 
-    // Method to get the file hash
-    public static String getFileHash(File file) throws IOException, NoSuchAlgorithmException {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        try (FileInputStream fis = new FileInputStream(file)) {
-            byte[] byteArray = new byte[1024];
-            int bytesCount = 0;
-            while ((bytesCount = fis.read(byteArray)) != -1) {
-                digest.update(byteArray, 0, bytesCount);
-            }
-        }
-        byte[] bytes = digest.digest();
-        StringBuilder sb = new StringBuilder();
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
-    }
-    
-    // Method to find duplicates
     public static List<FileDetails> findDuplicates(String directoryPath) throws IOException, NoSuchAlgorithmException {
         Map<Long, List<File>> filesBySize = new HashMap<>();
         
@@ -116,12 +97,34 @@ public class DuplicateFileEliminator {
         return fileList;
     }
     
+    public static String getFileHash(File file) throws IOException, NoSuchAlgorithmException {
+        MessageDigest digest = MessageDigest.getInstance("SHA-256");
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] byteArray = new byte[1024];
+            int bytesCount = 0;
+            while ((bytesCount = fis.read(byteArray)) != -1) {
+                digest.update(byteArray, 0, bytesCount);
+            }
+        }
+        byte[] bytes = digest.digest();
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
     
     public static boolean isIncludeFile(FileDetails fd){
     	if(fd.duplicates.size()>0) {
     		return true;
     	}
-    	if(fd.original.getAbsolutePath().contains(".git")) {
+    	String filePath=fd.original.getAbsolutePath();
+    	if(filePath.contains(".git") 
+    			|| filePath.contains("dennis\\\\work\\\\Property\\\\WebContent")
+    			|| filePath.contains("dennis\\\\work\\\\Trading\\\\Stock\\\\WebContent")
+
+    			
+    			) {
     		return false;
     	}
     	
