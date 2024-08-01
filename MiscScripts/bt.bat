@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Bitcoin\bitcoin-qt.exe" -datadir=d:\btdata

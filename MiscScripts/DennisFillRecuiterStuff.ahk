@@ -55,7 +55,7 @@
 	
 	^a::
 	{ 
-		SendText "1766 Cudaback Ave, Niagara Falls, NY 14303"
+		SendText "7630 Horizon Line Drive, Raleigh, NC 27617"
 		SoundBeep
 		
 	}
