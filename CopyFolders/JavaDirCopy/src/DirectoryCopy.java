@@ -41,6 +41,7 @@ public class DirectoryCopy {
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
                 Path relativePath = source.relativize(dir);
                 if (excludeFolders.contains(relativePath.toString())) {
+                	System.out.println("Exclude folder = " + relativePath);
                     return FileVisitResult.SKIP_SUBTREE;
                 }
                 Path targetDir = target.resolve(relativePath);
@@ -60,7 +61,8 @@ public class DirectoryCopy {
                     FileTime targetTime = Files.getLastModifiedTime(targetFile);
 
                     if (sourceTime.compareTo(targetTime) > 0) {
-                        Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                    	System.out.println("newer timestamp file = " + file.toString());
+                    	Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
                     }
                 } else {
                     Files.copy(file, targetFile);
@@ -92,7 +94,11 @@ public class DirectoryCopy {
             }
         });
 
-        // Log the extra files/folders
+        writeToLog(logFile, extraFilesInTarget);
+    }
+
+	private static void writeToLog(Path logFile, List<Path> extraFilesInTarget) throws IOException {
+		// Log the extra files/folders
         try (BufferedWriter logWriter = Files.newBufferedWriter(logFile, StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             logWriter.write("Log Time: " + sdf.format(System.currentTimeMillis()) + "\n");
@@ -102,5 +108,5 @@ public class DirectoryCopy {
             }
             logWriter.write("\n");
         }
-    }
+	}
 }

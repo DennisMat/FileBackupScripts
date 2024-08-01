@@ -1,12 +1,15 @@
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,40 +17,30 @@ import java.util.Map;
 
 public class DuplicateFileEliminator {
 
-	static String directoryPath = "C:/dennis";
-	//static String directoryPath ="C:/dennis/work/Property/WebContent/js/jquery-ui-themes-1.12.1";
-	
+	// static String directoryPath = "C:/dennis";
+	// static String directoryPath
+	// ="C:/dennis/work/Property/WebContent/js/jquery-ui-themes-1.12.1";
 
-	static String[] excludePaths = { ".git", "jquery-ui-themes-1.12.1",
-			"jquery-ui-1.12.1","DataTables-1.10.21"
-	};
+	static String[] excludePaths = { ".git", "jquery-ui-themes-1.12.1", "jquery-ui-1.12.1", "DataTables-1.10.21" };
+	static List<String> filesThatWereActuallyExcluded = new ArrayList<>();
 
-	static String[] excludePaths1 = { ".git", "dennis\\work\\Property\\\\WebContent\\js\\jquery-ui-themes-1.12.1",
-			"dennis\\\\work\\\\Trading\\\\Stock\\\\WebContent",
-
-	};
 	// Main method to run the duplicate eliminator
 	public static void main(String[] args) {
-//        if (args.length != 1) {
-//            System.err.println("Usage: java DuplicateFileEliminator <directory_path>");
-//            System.exit(1);
-//        }
+		if (args.length != 2) {
+			System.err.println("Usage: java DuplicateFileEliminator <directory_path> <log_file_path>");
+			System.exit(1);
+		}
 
-		// String directoryPath = args[0];
+		String directoryPath = args[0];
+		Path logFile = Paths.get(args[1]);
+		List<FileDetails> fileList;
 
 		try {
-			List<FileDetails> fileList = findDuplicates(directoryPath);
+			fileList = findDuplicates(directoryPath);
 			if (fileList.isEmpty()) {
 				System.out.println("No duplicate files found.");
 			} else {
-				System.out.println("Duplicate files found:");
-				for (FileDetails fd : fileList) {
-					System.out.println("-----------------\nOriginal = " + fd.original.getAbsolutePath());
-					for (File f : fd.duplicates) {
-						System.out.println("Dup = " + f.getAbsolutePath());
-					}
-				}
-
+				writeToLog(logFile, fileList);
 				// Uncomment the following line to enable deletion of duplicates
 				// removeDuplicates(duplicates);
 			}
@@ -126,32 +119,8 @@ public class DuplicateFileEliminator {
 
 		for (String excludePath : excludePaths) {
 			if (filePath.contains(excludePath)) {
-				//System.out.println("filePath=" + filePath);
+				filesThatWereActuallyExcluded.add(filePath);
 				return true;
-			}else {
-				int a=3;
-			}
-		}
-		return false;
-	}
-	
-	public static boolean isExcludeFileP(FileDetails fd) {
-		if (fd.duplicates.size() == 0) {
-			return false;
-		}
-		String filePathString = fd.original.getAbsolutePath();
-		Path filePath = Paths.get(filePathString).normalize();
-
-		
-		for (String excludePath : excludePaths) {
-			Path subPath = Paths.get(excludePath).normalize();
-			/*
-			 * if (filePath.contains(excludePath)) { return true; }
-			 */
-			if (filePath.toString().contains(subPath.toString())) {
-				System.out.println("filePath=" + filePath);
-				return true; 
-				
 			}
 		}
 		return false;
@@ -165,6 +134,31 @@ public class DuplicateFileEliminator {
 			} else {
 				System.err.println("Failed to remove: " + file.getAbsolutePath());
 			}
+		}
+	}
+
+	private static void writeToLog(Path logFile, List<FileDetails> fileList) throws IOException {
+
+		// Log the extra files/folders
+		try (BufferedWriter logWriter = Files.newBufferedWriter(logFile, StandardOpenOption.CREATE,
+				StandardOpenOption.APPEND)) {
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			logWriter.write("Log Time: " + sdf.format(System.currentTimeMillis()) + "\n");
+			logWriter.write("Duplicate files found:\n");
+			for (FileDetails fd : fileList) {
+				logWriter.write("-----------------\nOriginal = " + fd.original.getAbsolutePath()+"\n");
+				for (File f : fd.duplicates) {
+					logWriter.write("Dup = " + f.getAbsolutePath()+"\n");
+				}
+				logWriter.write("\n\n");
+			}
+
+			logWriter.write("File that were excluded:\n");
+			for (String f : filesThatWereActuallyExcluded) {
+				logWriter.write(f);
+			}
+
+			logWriter.write("\n");
 		}
 	}
 
