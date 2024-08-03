@@ -17,26 +17,31 @@ import java.util.Map;
 
 public class DuplicateFileEliminator {
 
-	// static String directoryPath = "C:/dennis";
-	// static String directoryPath
-	// ="C:/dennis/work/Property/WebContent/js/jquery-ui-themes-1.12.1";
 
-	static String[] excludePaths = { ".git", "jquery-ui-themes-1.12.1", "jquery-ui-1.12.1", "DataTables-1.10.21" };
+
 	static List<String> filesThatWereActuallyExcluded = new ArrayList<>();
 
 	// Main method to run the duplicate eliminator
-	public static void main(String[] args) {
-		if (args.length != 2) {
-			System.err.println("Usage: java DuplicateFileEliminator <directory_path> <log_file_path>");
+	public static void main(String[] args) throws Exception {
+		if (args.length < 2) {
+			System.err.println("Usage: java DuplicateFileEliminator.java <directory_path> <log_file_path> <array of exclusions>");
 			System.exit(1);
 		}
 
+		
+		 
+        List<String> excludePaths = new ArrayList<>();
+        for (int i = 3; i < args.length; i++) {
+        	excludePaths.add(args[i]);
+        }
+
+        
 		String directoryPath = args[0];
 		Path logFile = Paths.get(args[1]);
 		List<FileDetails> fileList;
 
 		try {
-			fileList = findDuplicates(directoryPath);
+			fileList = findDuplicates(directoryPath, excludePaths);
 			if (fileList.isEmpty()) {
 				System.out.println("No duplicate files found.");
 			} else {
@@ -53,7 +58,7 @@ public class DuplicateFileEliminator {
 		return file.length();
 	}
 
-	public static List<FileDetails> findDuplicates(String directoryPath) throws IOException, NoSuchAlgorithmException {
+	public static List<FileDetails> findDuplicates(String directoryPath, List<String> excludePaths) throws IOException, NoSuchAlgorithmException {
 		Map<Long, List<File>> filesBySize = new HashMap<>();
 
 		Files.walk(Paths.get(directoryPath)).filter(Files::isRegularFile).forEach(filePath -> {
@@ -84,7 +89,7 @@ public class DuplicateFileEliminator {
 				}
 				fd.duplicates = duplicates;
 
-				if (!isExcludeFile(fd)) {
+				if (!isExcludeFile(fd,excludePaths)) {
 					fileList.add(fd);
 				}
 
@@ -111,18 +116,27 @@ public class DuplicateFileEliminator {
 		return sb.toString();
 	}
 
-	public static boolean isExcludeFile(FileDetails fd) {
+	public static boolean isExcludeFile(FileDetails fd, List<String> excludePaths) {
 		if (fd.duplicates.size() == 0) {
+			return true;
+		}
+		if(fd.original.length()<2) {
 			return true;
 		}
 		String filePath = fd.original.getAbsolutePath();
 
 		for (String excludePath : excludePaths) {
+//			System.out.println("=========================");
+//			System.out.println(filePath);
+//			System.out.println(excludePath);
+			
 			if (filePath.contains(excludePath)) {
 				filesThatWereActuallyExcluded.add(filePath);
+//				System.out.println("============true=============");
 				return true;
 			}
 		}
+//		System.out.println("============false=============");
 		return false;
 	}
 
@@ -137,7 +151,7 @@ public class DuplicateFileEliminator {
 		}
 	}
 
-	private static void writeToLog(Path logFile, List<FileDetails> fileList) throws IOException {
+	private static void writeToLog(Path logFile, List<FileDetails> fileList) throws Exception {
 
 		// Log the extra files/folders
 		try (BufferedWriter logWriter = Files.newBufferedWriter(logFile, StandardOpenOption.CREATE,
@@ -146,16 +160,16 @@ public class DuplicateFileEliminator {
 			logWriter.write("Log Time: " + sdf.format(System.currentTimeMillis()) + "\n");
 			logWriter.write("Duplicate files found:\n");
 			for (FileDetails fd : fileList) {
-				logWriter.write("-----------------\nOriginal = " + fd.original.getAbsolutePath()+"\n");
+				logWriter.write("-----------------\nOriginal = " + fd.original.getAbsolutePath()+" fsize=" +fd.original.length()+" fhash=" + getFileHash(fd.original) +"\n");
 				for (File f : fd.duplicates) {
-					logWriter.write("Dup = " + f.getAbsolutePath()+"\n");
+					logWriter.write("Dup = " + f.getAbsolutePath()+" fsize=" +f.length() +" fhash=" + getFileHash(f) +  "\n");
 				}
 				logWriter.write("\n\n");
 			}
 
 			logWriter.write("File that were excluded:\n");
 			for (String f : filesThatWereActuallyExcluded) {
-				logWriter.write(f);
+				logWriter.write(f+"\n");
 			}
 
 			logWriter.write("\n");
