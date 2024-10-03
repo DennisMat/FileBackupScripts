@@ -21,7 +21,7 @@ public class DuplicateFileEliminator {
 
 	static List<String> filesThatWereActuallyExcluded = new ArrayList<>();
 
-	final static int minFileSize = 10000;
+	final static int minFileSize = 500000;
 
 	// Main method to run the duplicate eliminator
 	public static void main(String[] args) throws Exception {
@@ -111,11 +111,11 @@ public class DuplicateFileEliminator {
 						}
 						if (fileHashes.containsKey(fileHash)) {
 
-							for (FileGroup f : fileListGroupedByHashes) {
+							for (FileGroup fg : fileListGroupedByHashes) {
 								try {
-									if (!Files.isSameFile(file.toPath(), f.original.toPath())) {
-										if (comparefileByContents(file, f.original)) {
-											f.copies.add(file);
+									if (!Files.isSameFile(file.toPath(), fg.original.toPath())) {
+										if (comparefileByContents(file, fg.original)) {
+											fg.copies.add(file);
 										}
 									}
 								} catch (IOException e) {
@@ -132,10 +132,10 @@ public class DuplicateFileEliminator {
 					}
 				}
 
-				for (FileGroup f : fileListGroupedByHashes) {
-					if (f.copies.size() > 0) {
-						fileList.add(f);
-						writeToLog(logFile, f);
+				for (FileGroup fg : fileListGroupedByHashes) {
+					if (fg.copies.size() > 0) {
+						fileList.add(fg);
+						writeToLog(logFile, fg);
 					}
 				}
 
@@ -203,32 +203,13 @@ public class DuplicateFileEliminator {
 		return sb.toString();
 	}
 
-	public static boolean isExcludeFile(FileGroup fd, List<String> excludePaths) {
-		if (fd.copies.size() == 0) {
-			return true;
-		}
-		if (fd.original.length() < minFileSize) { // ignore files less that this figure
-			return true;
-		}
-		String filePath = fd.original.getAbsolutePath();
 
-		for (String excludePath : excludePaths) {
-//			System.out.println("=========================");
-//			System.out.println(filePath);
-//			System.out.println(excludePath);
-
-			if (filePath.contains(excludePath)) {
-				filesThatWereActuallyExcluded.add(filePath);
-//				System.out.println("============true=============");
-				return true;
-			}
-		}
-//		System.out.println("============false=============");
-		return false;
-	}
 
 	public static boolean isExcludeFile(File f, List<String> excludePaths) {
 		String filePath = f.getAbsolutePath();
+		if (f.length() < minFileSize) { // ignore files less that this figure
+			return true;
+		}
 		for (String excludePath : excludePaths) {
 			if (filePath.contains(excludePath)) {
 				filesThatWereActuallyExcluded.add(filePath);
