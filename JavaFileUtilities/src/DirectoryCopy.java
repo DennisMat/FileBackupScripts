@@ -16,7 +16,7 @@ public class DirectoryCopy {
 	public static void main(String[] args) {
 		if (args.length < 2) {
 			System.out.println(
-					"Usage: java DirectoryCopy.java source=<source> destination=<destination> log_file=<log_file> do_not_list_extra_files_folders_in_target=<exclude_traget_listing> move_extra_files_to=<dirname> exclude_files_dirs=<array of exclusions>");
+					"Usage: java DirectoryCopy.java source=<source> destination=<destination> log_file=<log_file> do_not_move_extra_files_folders_in_target=<exclude_target_moving> move_extra_files_to=<dirname> exclude_from_copy=<array of exclusions>");
 			System.exit(1);
 		}
 
@@ -24,10 +24,10 @@ public class DirectoryCopy {
 
 		System.out.println("You provided the following parameters:");
 		params.forEach((key, value) -> {
-			if (!key.equals("exclude_files_dirs")) {
+			if (!key.equals("exclude_from_copy")) {
 				System.out.println(key + " = " + value[0]);
 			} else {
-				System.out.println("exclude_files_dirs are:");
+				System.out.println("exclude_from_copy are:");
 				for (int i = 0; i < value.length; i++) {
 					System.out.println("   " + value[i]);
 				}
@@ -43,31 +43,33 @@ public class DirectoryCopy {
 		Path source = Paths.get(params.get("source")[0]);
 		Path target = Paths.get(params.get("target")[0]);
 		Path logFile = Paths.get(params.get("log_file")[0]);
-		Path do_not_list_extra_files_folders_in_target = null;
+		Path do_not_move_extra_files_folders_in_target = null;
 		
-		if(params.get("do_not_list_extra_files_folders_in_target")!=null) {
-			do_not_list_extra_files_folders_in_target=Paths.get(params.get("do_not_list_extra_files_folders_in_target")[0]);
+		if(params.get("do_not_move_extra_files_folders_in_target")!=null) {
+			do_not_move_extra_files_folders_in_target=Paths.get(params.get("do_not_move_extra_files_folders_in_target")[0]);
 		}
 				
-		String extrafileMoveTo = null;
+		String extrafileMoveToDir = null;
 
 		if (params.get("move_extra_files_to") != null) {
-			extrafileMoveTo = params.get("move_extra_files_to")[0];
+			extrafileMoveToDir = params.get("move_extra_files_to")[0];
 		}
 
-		List<String> excludeFolders = Arrays.asList(params.get("exclude_files_dirs"));
+		List<String> excludeFolders = Arrays.asList(params.get("exclude_from_copy"));
+		List<String> doNotMove = Arrays.asList(params.get("do_not_move_extra_files_folders_in_target"));
 
 		try {
-			List<Path> extraFilesInTarget = copyDirectory(source, target, excludeFolders, logFile, extrafileMoveTo);
+			List<Path> extraFilesInTarget = copyDirectory(source, target, excludeFolders, logFile, extrafileMoveToDir);
 			System.out.println("Directory copy operation completed successfully.");
-			writeToLog(logFile, extraFilesInTarget, do_not_list_extra_files_folders_in_target);
-			if (extrafileMoveTo != null) {
-				moveFilesWithStructure(logFile, target, extraFilesInTarget, extrafileMoveTo);
+			writeToLog(logFile, extraFilesInTarget, do_not_move_extra_files_folders_in_target);
+			if (extrafileMoveToDir != null) {
+				moveFilesWithStructure(logFile, target, extraFilesInTarget, extrafileMoveToDir, doNotMove);
 			} else {
 				System.out.println("Extra files will not be moved");
 			}
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
+			writeToLog(logFile, e.getMessage());
 		}
 		String logMess = "Finished copying " + source + " to " + target;
 		System.out.println(logMess);
@@ -86,8 +88,8 @@ public class DirectoryCopy {
 			@Override
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 				Path relativePath = source.relativize(dir);
-				if (isExcludeFolder(relativePath.toString(), excludeFolders)) {
-					// System.out.println("Excluding folder = " + relativePath);
+				if (isFileInList(relativePath.toString(), excludeFolders)) {
+					 System.out.println("Excluding folder = " + relativePath);
 					filesThatWereActuallyExcluded.add(dir.toString());
 					return FileVisitResult.SKIP_SUBTREE;
 				}
@@ -103,7 +105,7 @@ public class DirectoryCopy {
 				Path relativePath = source.relativize(file);
 				Path targetFile = target.resolve(relativePath);
 
-				if (!isExcludeFolder(file.toString(), excludeFolders)) {
+				if (!isFileInList(file.toString(), excludeFolders)) {
 
 					if (Files.exists(targetFile)) {
 						FileTime sourceTime = Files.getLastModifiedTime(file);
@@ -169,7 +171,7 @@ public class DirectoryCopy {
 	}
 
 	private static void writeToLog(Path logFile, List<Path> extraFilesInTarget,
-			Path do_not_list_extra_files_folders_in_target) throws IOException {
+			Path do_not_move_extra_files_folders_in_target) throws IOException {
 		// Log the extra files/folders
 		try (BufferedWriter logWriter = Files.newBufferedWriter(logFile, StandardOpenOption.CREATE,
 				StandardOpenOption.APPEND)) {
@@ -178,8 +180,8 @@ public class DirectoryCopy {
 			logWriter.write("Extra files/folders in target directory:\n");
 
 			for (Path extraFile : extraFilesInTarget) {
-				if (do_not_list_extra_files_folders_in_target != null) {
-					if (!extraFile.startsWith(do_not_list_extra_files_folders_in_target)) {
+				if (do_not_move_extra_files_folders_in_target != null) {
+					if (!extraFile.startsWith(do_not_move_extra_files_folders_in_target)) {
 						logWriter.write(extraFile.toString() + "\n");
 					}
 
@@ -209,17 +211,19 @@ public class DirectoryCopy {
 		}
 	}
 
-	public static boolean isExcludeFolder(String filePath, List<String> excludePaths) {
-		for (String excludePath : excludePaths) {
-			if (filePath.contains(excludePath)) {
+	public static boolean isFileInList(String filePath, List<String> list) {
+		for (String l : list) {
+			if (filePath.contains(l)) {
 				return true;
 			}
 		}
 		return false;
 	}
 
+
+
 	public static void moveFilesWithStructure(Path logFile, Path baseDirectorySourceForExtraFiles,
-			List<Path> extraFilePaths, String targetDirectory) throws IOException {
+			List<Path> extraFilePaths, String targetDirectory, List<String> doNotMove) throws IOException {
 		Path targetDirPath = Paths.get(targetDirectory);
 		writeToLog(logFile, "Moved Files:");
 		// Create the target directory if it doesn't exist
@@ -228,6 +232,11 @@ public class DirectoryCopy {
 		}
 
 		for (Path extraFilePath : extraFilePaths) {
+			
+			if(isFileInList(extraFilePath.toString(), doNotMove)) {
+				
+				continue;
+			}
 
 			Path relativePath = baseDirectorySourceForExtraFiles.relativize(extraFilePath);
 			Path targetPath = targetDirPath.resolve(relativePath);
@@ -241,7 +250,8 @@ public class DirectoryCopy {
 			try {
 				Files.move(extraFilePath, targetPath);
 				writeToLog(logFile, extraFilePath.toString());
-			} catch (IOException e) {
+			} catch (Exception e) {
+				writeToLog(logFile, e.getMessage());
 				System.out.println("file/folder " + targetPath + " may have been already created");
 				// e.printStackTrace();
 			}
