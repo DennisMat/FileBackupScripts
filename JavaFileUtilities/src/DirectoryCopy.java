@@ -55,8 +55,17 @@ public class DirectoryCopy {
 			extrafileMoveToDir = params.get("move_extra_files_to")[0];
 		}
 
-		List<String> excludeFolders = Arrays.asList(params.get("exclude_from_copy"));
-		List<String> doNotMove = Arrays.asList(params.get("do_not_move_extra_files_folders_in_target"));
+		List<String> excludeFolders = new ArrayList<String>();
+
+		if (params.get("exclude_from_copy") != null) {
+			excludeFolders = Arrays.asList(params.get("exclude_from_copy"));
+		}
+		
+		List<String> doNotMove = new ArrayList<String>();
+
+		if (params.get("do_not_move_extra_files_folders_in_target") != null) {
+			doNotMove = Arrays.asList(params.get("do_not_move_extra_files_folders_in_target"));
+		}
 
 		try {
 			List<Path> extraFilesInTarget = copyDirectory(source, target, excludeFolders, logFile, extrafileMoveToDir);
