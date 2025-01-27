@@ -43,12 +43,14 @@ public class DirectoryCopy {
 		Path source = Paths.get(params.get("source")[0]);
 		Path target = Paths.get(params.get("target")[0]);
 		Path logFile = Paths.get(params.get("log_file")[0]);
+		Path logFileError = Paths.get(params.get("log_file")[0]+"Error");
 		Path do_not_move_extra_files_folders_in_target = null;
-		
-		if(params.get("do_not_move_extra_files_folders_in_target")!=null) {
-			do_not_move_extra_files_folders_in_target=Paths.get(params.get("do_not_move_extra_files_folders_in_target")[0]);
+
+		if (params.get("do_not_move_extra_files_folders_in_target") != null) {
+			do_not_move_extra_files_folders_in_target = Paths
+					.get(params.get("do_not_move_extra_files_folders_in_target")[0]);
 		}
-				
+
 		String extrafileMoveToDir = null;
 
 		if (params.get("move_extra_files_to") != null) {
@@ -60,7 +62,7 @@ public class DirectoryCopy {
 		if (params.get("exclude_from_copy") != null) {
 			excludeFolders = Arrays.asList(params.get("exclude_from_copy"));
 		}
-		
+
 		List<String> doNotMove = new ArrayList<String>();
 
 		if (params.get("do_not_move_extra_files_folders_in_target") != null) {
@@ -68,25 +70,24 @@ public class DirectoryCopy {
 		}
 
 		try {
-			List<Path> extraFilesInTarget = copyDirectory(source, target, excludeFolders, logFile, extrafileMoveToDir);
+			List<Path> extraFilesInTarget = copyDirectory(source, target, excludeFolders, logFile, logFileError,extrafileMoveToDir);
 			System.out.println("Directory copy operation completed successfully.");
 			writeToLog(logFile, extraFilesInTarget, do_not_move_extra_files_folders_in_target);
 			if (extrafileMoveToDir != null) {
-				moveFilesWithStructure(logFile, target, extraFilesInTarget, extrafileMoveToDir, doNotMove);
+				moveFilesWithStructure(logFile, logFileError,target, extraFilesInTarget, extrafileMoveToDir, doNotMove);
 			} else {
 				System.out.println("Extra files will not be moved");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			writeToLog(logFile, e.getMessage());
+			writeToLog(logFileError, e.getMessage());
 		}
 		String logMess = "Finished copying " + source + " to " + target;
 		System.out.println(logMess);
 		writeToLog(logFile, logMess);
 	}
 
-	public static List<Path> copyDirectory(Path source, Path target, List<String> excludeFolders, Path logFile,
-			String extrafileMoveTo) throws IOException {
+	public static List<Path> copyDirectory(Path source, Path target, List<String> excludeFolders, Path logFile, Path logFileError, 	String extrafileMoveTo) throws IOException {
 		String logMess = "Started copying " + source + " to " + target;
 		System.out.println(logMess);
 		writeToLog(logFile, logMess);
@@ -98,7 +99,7 @@ public class DirectoryCopy {
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
 				Path relativePath = source.relativize(dir);
 				if (isFileInList(relativePath.toString(), excludeFolders)) {
-					 System.out.println("Excluding folder = " + relativePath);
+					System.out.println("Excluding folder = " + relativePath);
 					filesThatWereActuallyExcluded.add(dir.toString());
 					return FileVisitResult.SKIP_SUBTREE;
 				}
@@ -125,17 +126,21 @@ public class DirectoryCopy {
 							try {
 								Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
 							} catch (Exception e) {
-								System.err.println(e.getMessage());
+								String logMess = e.getMessage();
+								System.err.println(logMess);
+								writeToLog(logFileError, logMess);
 							}
 						}
 					} else {
 						try {
-							// System.out.println("copying file = " + file.toString());
-							System.out.println("New file = " + file.toString());
+
+							System.out.println("New file being copied = " + file.toString());
 							Files.copy(file, targetFile);
-							// System.out.println("copied file = " + file.toString() +" " + targetFile);
+							System.out.println("copied file = " + file.toString() + " " + targetFile);
 						} catch (Exception e) {
-							System.err.println(e.getMessage());
+							String logMess = e.getMessage();
+							System.err.println(logMess);
+							writeToLog(logFileError, logMess);
 						}
 					}
 				} else {
@@ -222,16 +227,16 @@ public class DirectoryCopy {
 
 	public static boolean isFileInList(String filePath, List<String> list) {
 		for (String l : list) {
-			if (filePath.contains(l)) {
-				return true;
+			if (!l.isBlank()) {
+				if (filePath.contains(l)) {
+					return true;
+				}
 			}
 		}
 		return false;
 	}
 
-
-
-	public static void moveFilesWithStructure(Path logFile, Path baseDirectorySourceForExtraFiles,
+	public static void moveFilesWithStructure(Path logFile,Path logFileError, Path baseDirectorySourceForExtraFiles,
 			List<Path> extraFilePaths, String targetDirectory, List<String> doNotMove) throws IOException {
 		Path targetDirPath = Paths.get(targetDirectory);
 		writeToLog(logFile, "Moved Files:");
@@ -241,9 +246,7 @@ public class DirectoryCopy {
 		}
 
 		for (Path extraFilePath : extraFilePaths) {
-			
-			if(isFileInList(extraFilePath.toString(), doNotMove)) {
-				
+			if (isFileInList(extraFilePath.toString(), doNotMove)) {
 				continue;
 			}
 
@@ -258,9 +261,9 @@ public class DirectoryCopy {
 			// Move the file to the target location
 			try {
 				Files.move(extraFilePath, targetPath);
-				writeToLog(logFile, extraFilePath.toString());
+				writeToLog(logFile, "Moved file from" + extraFilePath.toString() + "->" + targetPath);
 			} catch (Exception e) {
-				writeToLog(logFile, e.getMessage());
+				writeToLog(logFileError, e.getMessage());
 				System.out.println("file/folder " + targetPath + " may have been already created");
 				// e.printStackTrace();
 			}
