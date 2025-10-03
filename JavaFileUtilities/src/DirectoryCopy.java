@@ -43,7 +43,7 @@ public class DirectoryCopy {
 		Path source = Paths.get(params.get("source")[0]);
 		Path target = Paths.get(params.get("target")[0]);
 		Path logFile = Paths.get(params.get("log_file")[0]);
-		Path logFileError = Paths.get(params.get("log_file")[0]+"Error");
+		Path logFileError = Paths.get(params.get("log_file")[0] + "Error");
 		Path do_not_move_extra_files_folders_in_target = null;
 
 		if (params.get("do_not_move_extra_files_folders_in_target") != null) {
@@ -70,11 +70,16 @@ public class DirectoryCopy {
 		}
 
 		try {
-			List<Path> extraFilesInTarget = copyDirectory(source, target, excludeFolders, logFile, logFileError,extrafileMoveToDir);
+			 copyDirectory(source, target, excludeFolders, logFile, logFileError,
+			 extrafileMoveToDir);
 			System.out.println("Directory copy operation completed successfully.");
+
+			List<Path> extraFilesInTarget = compareForExtraFiles(source, target);
+
 			writeToLog(logFile, extraFilesInTarget, do_not_move_extra_files_folders_in_target);
 			if (extrafileMoveToDir != null) {
-				moveFilesWithStructure(logFile, logFileError,target, extraFilesInTarget, extrafileMoveToDir, doNotMove);
+				moveFilesWithStructure(logFile, logFileError, target, extraFilesInTarget, extrafileMoveToDir,
+						doNotMove);
 			} else {
 				System.out.println("Extra files will not be moved");
 			}
@@ -87,11 +92,11 @@ public class DirectoryCopy {
 		writeToLog(logFile, logMess);
 	}
 
-	public static List<Path> copyDirectory(Path source, Path target, List<String> excludeFolders, Path logFile, Path logFileError, 	String extrafileMoveTo) throws IOException {
+	public static void copyDirectory(Path source, Path target, List<String> excludeFolders, Path logFile,
+			Path logFileError, String extrafileMoveTo) throws IOException {
 		String logMess = "Started copying " + source + " to " + target;
 		System.out.println(logMess);
 		writeToLog(logFile, logMess);
-		List<Path> extraFilesInTarget = new ArrayList<>();
 
 		// Walk the source tree
 		Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
@@ -118,19 +123,21 @@ public class DirectoryCopy {
 				if (!isFileInList(file.toString(), excludeFolders)) {
 
 					if (Files.exists(targetFile)) {
-						FileTime sourceTime = Files.getLastModifiedTime(file);
-						FileTime targetTime = Files.getLastModifiedTime(targetFile);
+						try {
+							FileTime sourceTime = Files.getLastModifiedTime(file);
+							FileTime targetTime = Files.getLastModifiedTime(targetFile);
 
-						if (sourceTime.compareTo(targetTime) > 0) {
-							System.out.println("newer timestamp file = " + file.toString());
-							try {
+							if (sourceTime.compareTo(targetTime) > 0) {
+								System.out.println("newer timestamp file = " + file.toString());
+
 								Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
-							} catch (Exception e) {
-								String logMess = e.getMessage();
-								System.err.println(logMess);
-								writeToLog(logFileError, logMess);
 							}
+						} catch (Exception e) {
+							String logMess = e.getMessage();
+							System.err.println("In visitFile 1. " + logMess);
+							writeToLog(logFileError, logMess);
 						}
+
 					} else {
 						try {
 
@@ -139,7 +146,7 @@ public class DirectoryCopy {
 							System.out.println("copied file = " + file.toString() + " " + targetFile);
 						} catch (Exception e) {
 							String logMess = e.getMessage();
-							System.err.println(logMess);
+							System.err.println("In visitFile 2. " + logMess);
 							writeToLog(logFileError, logMess);
 						}
 					}
@@ -151,41 +158,75 @@ public class DirectoryCopy {
 				return FileVisitResult.CONTINUE;
 
 			}
-		});
-
-		// Walk the target tree to find extra files/folders
-		Files.walkFileTree(target, new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-				Path relativePath = target.relativize(file);
-				Path sourceFile = source.resolve(relativePath);
-				if (!Files.exists(sourceFile)) {
-					extraFilesInTarget.add(file);
-				}
-				return FileVisitResult.CONTINUE;
-			}
-
-			@Override
-			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-				Path relativePath = target.relativize(dir);
-				Path sourceDir = source.resolve(relativePath);
-				if (!Files.exists(sourceDir)) {
-					if (!filesThatWereActuallyExcluded.contains(relativePath.toString())) {
-						extraFilesInTarget.add(dir);
-					}
-
-				}
-				return FileVisitResult.CONTINUE;
-			}
+			
+			 @Override
+			    public FileVisitResult visitFileFailed(Path file, IOException exc) {
+			        System.err.println("Failed to access file while copying" + file + ": " + exc.getMessage());
+			        return FileVisitResult.SKIP_SUBTREE;
+			    }
 		});
 
 		System.out.println("Done copying " + source + " to " + target);
-		return extraFilesInTarget;
 
+	}
+
+	private static List<Path> compareForExtraFiles(Path source, Path target) throws IOException {
+		// Walk the target tree to find extra files/folders
+		System.out.println("Searching for extra files... ");
+		List<Path> extraFilesInTarget = new ArrayList<>();
+
+		Files.walkFileTree(target, new SimpleFileVisitor<Path>() {
+			@Override
+			public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+				try {
+					Path relativePath = target.relativize(file);
+					Path sourceFile = source.resolve(relativePath);
+					if (!Files.exists(sourceFile)) {
+						extraFilesInTarget.add(file);
+					}
+				} catch (Exception e) {
+					String logMess = e.getMessage();
+					System.err.println("In compareForExtraFiles, visitFile 1. " + logMess);
+					// writeToLog(logFileError, logMess);
+				}
+				return FileVisitResult.CONTINUE;
+			}
+
+			@Override
+			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+				try {
+					Path relativePath = target.relativize(dir);
+					Path sourceDir = source.resolve(relativePath);
+					if (!Files.exists(sourceDir)) {
+						if (!filesThatWereActuallyExcluded.contains(relativePath.toString())) {
+							extraFilesInTarget.add(dir);
+						}
+
+					}
+				} catch (Exception e) {
+					String logMess = e.getMessage();
+					System.err.println("In compareForExtraFiles, preVisitDirectory 1. " + logMess);
+					 //writeToLog(logFileError, logMess);
+				}
+				return FileVisitResult.CONTINUE;
+			}
+			
+			
+			 @Override
+			    public FileVisitResult visitFileFailed(Path file, IOException exc) {
+			        System.err.println("Failed to access file " + file + ": " + exc.getMessage());
+			        return FileVisitResult.SKIP_SUBTREE;
+			    }
+		});
+		return extraFilesInTarget;
 	}
 
 	private static void writeToLog(Path logFile, List<Path> extraFilesInTarget,
 			Path do_not_move_extra_files_folders_in_target) throws IOException {
+
+		// Create all necessary parent directories for the log file
+		Files.createDirectories(logFile.getParent());
+
 		// Log the extra files/folders
 		try (BufferedWriter logWriter = Files.newBufferedWriter(logFile, StandardOpenOption.CREATE,
 				StandardOpenOption.APPEND)) {
@@ -236,7 +277,7 @@ public class DirectoryCopy {
 		return false;
 	}
 
-	public static void moveFilesWithStructure(Path logFile,Path logFileError, Path baseDirectorySourceForExtraFiles,
+	public static void moveFilesWithStructure(Path logFile, Path logFileError, Path baseDirectorySourceForExtraFiles,
 			List<Path> extraFilePaths, String targetDirectory, List<String> doNotMove) throws IOException {
 		Path targetDirPath = Paths.get(targetDirectory);
 		writeToLog(logFile, "Moved Files:");
