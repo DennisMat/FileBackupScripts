@@ -71,7 +71,7 @@ public class DuplicateFileEliminator {
 	}
 
 	public static List<FileGroup> findDuplicates(String directoryPath, List<String> excludePaths, Path logFile) {
-		Map<Long, List<File>> filesBySize = new HashMap<>();
+		Map<Long, List<File>> filesBySizeHash = new HashMap<>();
 
 		final AtomicInteger file_count = new AtomicInteger(0);
 		try {
@@ -79,7 +79,7 @@ public class DuplicateFileEliminator {
 				File file = filePath.toFile();
 				long fileSize = getFileSize(file);
 				if (fileSize > 2) {
-					filesBySize.computeIfAbsent(fileSize, k -> new ArrayList<>()).add(file);
+					filesBySizeHash.computeIfAbsent(fileSize, k -> new ArrayList<>()).add(file);
 					System.out.print(".");
 					file_count.incrementAndGet();
 				}
@@ -91,10 +91,10 @@ public class DuplicateFileEliminator {
 		}
 
 		System.out.println(
-				"Total file count = " + file_count.get() + "Total file count by unique sizes = " + filesBySize.size());
+				"Total file count = " + file_count.get() + "Total file count by unique sizes = " + filesBySizeHash.size());
 		List<FileGroup> fileList = new ArrayList<>();
 
-		for (Map.Entry<Long, List<File>> entry : filesBySize.entrySet()) {
+		for (Map.Entry<Long, List<File>> entry : filesBySizeHash.entrySet()) {
 			List<File> files = entry.getValue();
 			if (files.size() > 1) {
 
@@ -211,7 +211,7 @@ public class DuplicateFileEliminator {
 			return true;
 		}
 		for (String excludePath : excludePaths) {
-			if (filePath.contains(excludePath)) {
+			if (excludePath!=null && !excludePath.equals("") && filePath.contains(excludePath)) {
 				filesThatWereActuallyExcluded.add(filePath);
 				return true;
 			}

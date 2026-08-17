@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class DirectoryCopy {
 
@@ -42,7 +44,7 @@ public class DirectoryCopy {
 
 		Path source = Paths.get(params.get("source")[0]);
 		Path target = Paths.get(params.get("target")[0]);
-		Path logFile = Paths.get(params.get("log_file")[0]);
+		Path logFile = Paths.get(params.get("log_file")[0] + "-" + getTimestamp() + ".log");
 		Path logFileError = Paths.get(params.get("log_file")[0] + "Error");
 		Path do_not_move_extra_files_folders_in_target = null;
 
@@ -74,7 +76,7 @@ public class DirectoryCopy {
 			 extrafileMoveToDir);
 			System.out.println("Directory copy operation completed successfully.");
 
-			List<Path> extraFilesInTarget = compareForExtraFiles(source, target);
+			List<Path> extraFilesInTarget = compareForExtraFiles(source, target, logFileError);
 
 			writeToLog(logFile, extraFilesInTarget, do_not_move_extra_files_folders_in_target);
 			if (extrafileMoveToDir != null) {
@@ -97,20 +99,28 @@ public class DirectoryCopy {
 		String logMess = "Started copying " + source + " to " + target;
 		System.out.println(logMess);
 		writeToLog(logFile, logMess);
-
+       //System.out.println("Before walkFileTree 1. ");
 		// Walk the source tree
 		Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
 			@Override
 			public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
-				Path relativePath = source.relativize(dir);
-				if (isFileInList(relativePath.toString(), excludeFolders)) {
-					System.out.println("Excluding folder = " + relativePath);
-					filesThatWereActuallyExcluded.add(dir.toString());
-					return FileVisitResult.SKIP_SUBTREE;
-				}
-				Path targetDir = target.resolve(relativePath);
-				if (!Files.exists(targetDir)) {
-					Files.createDirectories(targetDir);
+				try {
+					Path relativePath = source.relativize(dir);
+					//System.out.println("In preVisitDirectory 1. ");
+					if (isFileInList(relativePath.toString(), excludeFolders)) {
+						System.out.println("Excluding folder = " + relativePath);
+						filesThatWereActuallyExcluded.add(dir.toString());
+						return FileVisitResult.SKIP_SUBTREE;
+					}
+					Path targetDir = target.resolve(relativePath);
+					if (!Files.exists(targetDir)) {
+						Files.createDirectories(targetDir);
+					}
+				} catch (Exception e) {
+						String logMess = e.getMessage() + " " + e.toString();
+						System.err.println("In preVisitDirectory 1. " + logMess);
+						writeToLog(logFileError, logMess);
+						
 				}
 				return FileVisitResult.CONTINUE;
 			}
@@ -133,7 +143,7 @@ public class DirectoryCopy {
 								Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
 							}
 						} catch (Exception e) {
-							String logMess = e.getMessage();
+							String logMess = e.getMessage() + " -- " + e.toString();
 							System.err.println("In visitFile 1. " + logMess);
 							writeToLog(logFileError, logMess);
 						}
@@ -145,7 +155,7 @@ public class DirectoryCopy {
 							Files.copy(file, targetFile);
 							System.out.println("copied file = " + file.toString() + " " + targetFile);
 						} catch (Exception e) {
-							String logMess = e.getMessage();
+							String logMess = e.getMessage() + " -- " + e.toString();
 							System.err.println("In visitFile 2. " + logMess);
 							writeToLog(logFileError, logMess);
 						}
@@ -170,7 +180,7 @@ public class DirectoryCopy {
 
 	}
 
-	private static List<Path> compareForExtraFiles(Path source, Path target) throws IOException {
+	private static List<Path> compareForExtraFiles(Path source, Path target, Path logFileError) throws IOException {
 		// Walk the target tree to find extra files/folders
 		System.out.println("Searching for extra files... ");
 		List<Path> extraFilesInTarget = new ArrayList<>();
@@ -185,9 +195,9 @@ public class DirectoryCopy {
 						extraFilesInTarget.add(file);
 					}
 				} catch (Exception e) {
-					String logMess = e.getMessage();
-					System.err.println("In compareForExtraFiles, visitFile 1. " + logMess);
-					// writeToLog(logFileError, logMess);
+					String logMess = "In compareForExtraFiles, in visitDirectory. " + e.getMessage() + "--" + e.toString();
+					System.err.println(logMess);
+					writeToLog(logFileError, logMess);
 				}
 				return FileVisitResult.CONTINUE;
 			}
@@ -204,17 +214,19 @@ public class DirectoryCopy {
 
 					}
 				} catch (Exception e) {
-					String logMess = e.getMessage();
-					System.err.println("In compareForExtraFiles, preVisitDirectory 1. " + logMess);
-					 //writeToLog(logFileError, logMess);
+					String logMess = "In compareForExtraFiles, in preVisitDirectory. " + e.getMessage()+ "--" + e.toString();
+					System.err.println(logMess);
+					writeToLog(logFileError, logMess);
 				}
 				return FileVisitResult.CONTINUE;
 			}
 			
 			
 			 @Override
-			    public FileVisitResult visitFileFailed(Path file, IOException exc) {
-			        System.err.println("Failed to access file " + file + ": " + exc.getMessage());
+			    public FileVisitResult visitFileFailed(Path file, IOException e) {
+					String logMess = "Failed to access file " + file + ": " + e.getMessage()+ "--" + e.toString();
+					System.err.println(logMess);
+					writeToLog(logFileError, logMess);
 			        return FileVisitResult.SKIP_SUBTREE;
 			    }
 		});
@@ -351,6 +363,11 @@ public class DirectoryCopy {
 		}
 		// Split the value by commas and trim any extra spaces
 		return value.split("\\s*,\\s*");
+	}
+	
+	private static String getTimestamp() {
+    return LocalDateTime.now()
+            .format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss"));
 	}
 
 }
